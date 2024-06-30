@@ -5,13 +5,14 @@ import { TranscriberData } from "../hooks/useTranscriber"
 export default function AudioPlayer(props: {
   audioUrl: string;
   mimeType: string;
-  transcribedData: TranscriberData
+  transcribedData?: TranscriberData
 }) {
   const audioPlayer = useRef<HTMLAudioElement>(null);
   const audioSource = useRef<HTMLSourceElement>(null);
   const videoPlayer = useRef<HTMLVideoElement>(null);
   const videoSource = useRef<HTMLSourceElement>(null);
   const subtitleSource = useRef<HTMLTrackElement>(null);
+  const linkTarget = useRef<HTMLAnchorElement>(null);
 
   // Updates src when url changes
   useEffect(() => {
@@ -27,11 +28,19 @@ export default function AudioPlayer(props: {
 
   useEffect(() => {
     if (props.transcribedData && !props.transcribedData.isBusy) {
+      const vttText = convertToVTT(props.transcribedData.chunks)
+      const vttBlob = new Blob([vttText], { type: "text/vtt" });
+      const vttUrl = URL.createObjectURL(vttBlob);
       if (subtitleSource.current) {
-        const vttText = convertToVTT(props.transcribedData.chunks)
-        const vttBlob = new Blob([vttText], { type: "text/vtt" });
-        const vttUrl = URL.createObjectURL(vttBlob);
         subtitleSource.current.src = vttUrl;
+      }
+      if (linkTarget.current) {
+        linkTarget.current.onclick = () => {
+          const link = document.createElement("a");
+          link.href = vttUrl;
+          link.download = "subtitle.vtt";
+          link.click();
+        }
       }
     }
   }, [props.transcribedData])
@@ -56,6 +65,11 @@ export default function AudioPlayer(props: {
           <source ref={audioSource} type={props.mimeType}></source>
         </audio>
       )}
+      {
+        props.transcribedData?.isBusy !== true && (
+          <button ref={linkTarget} className="bg-slate-500/50 text-white p-2 rounded-xl absolute right-4 top-4">字幕下載</button>
+        )
+      }
     </div>
   );
 }
