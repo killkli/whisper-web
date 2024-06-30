@@ -12,17 +12,52 @@ export default function AudioPlayer(props: {
   const videoPlayer = useRef<HTMLVideoElement>(null);
   const videoSource = useRef<HTMLSourceElement>(null);
   const subtitleSource = useRef<HTMLTrackElement>(null);
-  const linkTarget = useRef<HTMLAnchorElement>(null);
+  const linkTarget = useRef<HTMLButtonElement>(null);
+
+  const playtime_event = (event: Event) => {
+    if (!props.transcribedData) return;
+    const chunks = props.transcribedData.chunks
+    const element = event.target as HTMLMediaElement
+    const currentTime = element.currentTime
+    let targetIdx = -1;
+    for (let i = 0; i < chunks.length; i++) {
+      const c = chunks[i]
+      if (c.timestamp[0] <= currentTime && (c.timestamp[1] ?? 0) >= currentTime) {
+        targetIdx = i
+        break
+      }
+    }
+    if (targetIdx === -1) return;
+    const query = `[data-testid="chunk-${targetIdx}"]`;
+    const target = document.querySelector(query)
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth" })
+      target.classList.add("bg-yellow-300/50")
+    }
+  }
+  const clear_event = () => {
+    const clearElements = document.querySelectorAll("[data-testid]")
+    clearElements.forEach(e => {
+      e.classList.remove("bg-yellow-300/50")
+    });
+  }
+
 
   // Updates src when url changes
   useEffect(() => {
     if (audioPlayer.current && audioSource.current) {
       audioSource.current.src = props.audioUrl;
       audioPlayer.current.load();
+      audioPlayer.current.ontimeupdate = playtime_event;
+      audioPlayer.current.onpause = clear_event;
+      audioPlayer.current.onplay = clear_event;
     }
     if (videoPlayer.current && videoSource.current) {
       videoSource.current.src = props.audioUrl;
       videoPlayer.current.load();
+      videoPlayer.current.ontimeupdate = playtime_event;
+      videoPlayer.current.onpause = clear_event;
+      videoPlayer.current.onplay = clear_event;
     }
   }, [props.audioUrl]);
 

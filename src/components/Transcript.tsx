@@ -1,12 +1,13 @@
-import { useRef, useEffect } from "react";
-import { TranscriberData } from "../hooks/useTranscriber";
+import { useRef, useEffect, useState } from "react";
+import { Transcriber, TranscriberData } from "../hooks/useTranscriber";
 import { formatAudioTimestamp } from "../utils/AudioUtils";
 
 interface Props {
   transcribedData: TranscriberData | undefined;
+  transcriber: Transcriber
 }
 
-export default function Transcript({ transcribedData }: Props) {
+export default function Transcript({ transcribedData, transcriber }: Props) {
   const divRef = useRef<HTMLDivElement>(null);
 
   const saveBlob = (blob: Blob, filename: string) => {
@@ -65,6 +66,21 @@ export default function Transcript({ transcribedData }: Props) {
     }
   }
 
+  const [currentEditingIndex, setCurrentEditingIndex] = useState<number | null>(null);
+  const [editingContent, setEditingContent] = useState<string>("");
+  const saveEditingContent = () => {
+    if (!transcribedData || !transcribedData.chunks || currentEditingIndex === null) {
+      setCurrentEditingIndex(null);
+      setEditingContent("");
+      return;
+    }
+    const newData = structuredClone(transcribedData);
+    newData.chunks[currentEditingIndex].text = editingContent;
+    transcriber.setTranscript(newData);
+    setCurrentEditingIndex(null);
+    setEditingContent("");
+  }
+
   return (
     <div
       ref={divRef}
@@ -73,14 +89,28 @@ export default function Transcript({ transcribedData }: Props) {
       {transcribedData?.chunks &&
         transcribedData.chunks.map((chunk, i) => (
           <div
+            data-testid={`chunk-${i}`}
             key={`${i}-${chunk.text}`}
             className={`w-full flex flex-row mb-2 ${transcribedData?.isBusy ? 'bg-gray-100' : 'bg-white'} hover:bg-gray-200 rounded-lg p-4 shadow-xl shadow-black/5 ring-1 ring-slate-700/10`}
             onClick={() => videoJumpTo(chunk.timestamp[0])}
           >
             <div className='mr-5'>
-              {formatAudioTimestamp(chunk.timestamp[0])}
+              {formatAudioTimestamp(chunk.timestamp[0])} -
+              {formatAudioTimestamp(chunk.timestamp[1])}
             </div>
-            {chunk.text}
+            {currentEditingIndex === i ? (
+              <>
+                <input className='w-full bg-gray-100 rounded-lg p-2 mx-1' value={editingContent} onChange={(e) => setEditingContent(e.target.value)} />
+                <button className="mx-1 bg-gray-100 text-gray-500 hover:bg-gray-200 focus:ring-2 focus:ring-gray-300 font-medium rounded-lg text-sm px-4 py-2 text-center inline-flex items-center" onClick={saveEditingContent}>Save</button>
+              </>
+            ) : (
+              <span
+                onDoubleClick={() => {
+                  setCurrentEditingIndex(i);
+                  setEditingContent(chunk.text)
+                }}
+                className="text-gray-500">{chunk.text}</span>
+            )}
           </div>
         ))
       }

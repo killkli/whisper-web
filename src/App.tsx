@@ -15,9 +15,9 @@ function App() {
           <div className='container flex flex-col justify-center items-center min-w-[800px]'>
             <AudioManager transcriber={transcriber} />
           </div>
-          <Transcript transcribedData={transcriber.output} />
+          <Transcript transcriber={transcriber} transcribedData={transcriber.output} />
 
-          <div className='absolute bottom-4'>
+          <div className='absolute bottom-4 left-2'>
             Made with{" "}
             <a
               className='underline'
