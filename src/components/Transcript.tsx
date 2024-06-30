@@ -81,6 +81,23 @@ export default function Transcript({ transcribedData, transcriber }: Props) {
     setEditingContent("");
   }
 
+  const [cEditTimeIdx, setCETI] = useState<number | null>(null);
+  const [cEditTime, setCET] = useState<[number, number | null]>([0, 0]);
+  const setCETIAndCET = () => {
+    if (!transcribedData || !transcribedData.chunks || cEditTimeIdx === null) {
+      setCETI(null);
+      setCET([0, 0]);
+      return;
+    }
+    const newData = structuredClone(transcribedData);
+    newData.chunks[cEditTimeIdx].timestamp = [cEditTime[0], cEditTime[1]];
+    transcriber.setTranscript(newData);
+    setCETI(null);
+    setCET([0, 0]);
+  }
+
+
+
   return (
     <div
       ref={divRef}
@@ -94,10 +111,23 @@ export default function Transcript({ transcribedData, transcriber }: Props) {
             className={`w-full flex flex-row mb-2 ${transcribedData?.isBusy ? 'bg-gray-100' : 'bg-white'} hover:bg-gray-200 rounded-lg p-4 shadow-xl shadow-black/5 ring-1 ring-slate-700/10`}
             onClick={() => videoJumpTo(chunk.timestamp[0])}
           >
-            <div className='mr-5'>
-              {formatAudioTimestamp(chunk.timestamp[0])} -
-              {formatAudioTimestamp(chunk.timestamp[1])}
-            </div>
+            {cEditTimeIdx === i ? (
+              <div className='mr-5'>
+                <input className='w-full bg-gray-100 rounded-lg p-2 mx-1' value={cEditTime[0]} onChange={(e) => setCET([Number(e.target.value), cEditTime[1]])} />
+                <input className='w-full bg-gray-100 rounded-lg p-2 mx-1' value={cEditTime[1] ?? 0} onChange={(e) => setCET([cEditTime[0], Number(e.target.value)])} />
+                <button className="mx-1 bg-gray-100 text-gray-500 hover:bg-gray-200 focus:ring-2 focus:ring-gray-300 font-medium rounded-lg text-sm px-4 py-2 text-center inline-flex items-center" onClick={setCETIAndCET}>Save</button>
+              </div>
+            ) : (
+              <div className='mr-5'
+                onDoubleClick={() => {
+                  setCETI(i);
+                  setCET([...chunk.timestamp])
+                }}
+              >
+                {formatAudioTimestamp(chunk.timestamp[0])} -
+                {formatAudioTimestamp(chunk.timestamp[1])}
+              </div>
+            )}
             {currentEditingIndex === i ? (
               <>
                 <input className='w-full bg-gray-100 rounded-lg p-2 mx-1' value={editingContent} onChange={(e) => setEditingContent(e.target.value)} />

@@ -78,6 +78,16 @@ export default function AudioPlayer(props: {
         }
       }
     }
+    if (audioPlayer.current) {
+      audioPlayer.current.ontimeupdate = playtime_event;
+      audioPlayer.current.onpause = clear_event;
+      audioPlayer.current.onplay = clear_event;
+    }
+    if (videoPlayer.current) {
+      videoPlayer.current.ontimeupdate = playtime_event;
+      videoPlayer.current.onpause = clear_event;
+      videoPlayer.current.onplay = clear_event;
+    }
   }, [props.transcribedData])
 
   return (
@@ -89,7 +99,7 @@ export default function AudioPlayer(props: {
           className='w-full rounded-lg bg-white shadow-xl shadow-black/5 ring-1 ring-slate-700/10'
         >
           <source ref={videoSource} type={props.mimeType}></source>
-          <track ref={subtitleSource} kind="subtitles" />
+          <track ref={subtitleSource} kind="subtitles" default srcLang="zh" />
         </video>
       ) : (
         <audio
