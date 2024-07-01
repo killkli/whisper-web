@@ -96,6 +96,49 @@ export default function Transcript({ transcribedData, transcriber }: Props) {
     setCET([0, 0]);
   }
 
+  const mergeChunk = (i: number, j: number) => {
+    if (!transcribedData || !transcribedData.chunks) {
+      return
+    }
+    const newData = structuredClone(transcribedData);
+    newData.chunks[i].text += newData.chunks[j].text;
+    newData.chunks[i].timestamp[1] = newData.chunks[j].timestamp[1];
+    newData.chunks.splice(j, 1);
+    transcriber.setTranscript(newData);
+  }
+
+  const addChunk = (i: number) => {
+    if (!transcribedData || !transcribedData.chunks) {
+      return
+    }
+    const newData = structuredClone(transcribedData);
+    const newChunk = {
+      text: newData.chunks[i].text,
+      timestamp: [newData.chunks[i].timestamp[0], newData.chunks[i].timestamp[1]]
+    }
+    if (i < newData.chunks.length - 1) {
+      newData.chunks.splice(i + 1, 0, newChunk);
+    } else {
+      newData.chunks.push(newChunk);
+    }
+    transcriber.setTranscript(newData);
+  }
+  const removeChunk = (i: number) => {
+    if (!transcribedData || !transcribedData.chunks) {
+      return
+    }
+    const newData = structuredClone(transcribedData);
+    if (i < newData.chunks.length - 1) {
+      newData.chunks.splice(i, 1);
+    } else {
+      newData.chunks.pop()
+    }
+    transcriber.setTranscript(newData);
+  }
+
+
+
+
 
 
   return (
@@ -105,43 +148,59 @@ export default function Transcript({ transcribedData, transcriber }: Props) {
     >
       {transcribedData?.chunks &&
         transcribedData.chunks.map((chunk, i) => (
-          <div
-            data-testid={`chunk-${i}`}
-            key={`${i}-${chunk.text}`}
-            className={`w-full flex flex-row mb-2 ${transcribedData?.isBusy ? 'bg-gray-100' : 'bg-white'} hover:bg-gray-200 rounded-lg p-4 shadow-xl shadow-black/5 ring-1 ring-slate-700/10`}
-            onClick={() => videoJumpTo(chunk.timestamp[0])}
-          >
-            {cEditTimeIdx === i ? (
-              <div className='mr-5'>
-                <input className='w-full bg-gray-100 rounded-lg p-2 mx-1' value={cEditTime[0]} onChange={(e) => setCET([Number(e.target.value), cEditTime[1]])} />
-                <input className='w-full bg-gray-100 rounded-lg p-2 mx-1' value={cEditTime[1] ?? 0} onChange={(e) => setCET([cEditTime[0], Number(e.target.value)])} />
-                <button className="mx-1 bg-gray-100 text-gray-500 hover:bg-gray-200 focus:ring-2 focus:ring-gray-300 font-medium rounded-lg text-sm px-4 py-2 text-center inline-flex items-center" onClick={setCETIAndCET}>Save</button>
-              </div>
-            ) : (
-              <div className='mr-5'
-                onDoubleClick={() => {
-                  setCETI(i);
-                  setCET([...chunk.timestamp])
-                }}
-              >
-                {formatAudioTimestamp(chunk.timestamp[0])} -
-                {formatAudioTimestamp(chunk.timestamp[1])}
+          <>
+            <div
+              data-testid={`chunk-${i}`}
+              key={`${i}-${chunk.text}`}
+              className={`group w-full relative flex flex-row mb-2 ${transcribedData?.isBusy ? 'bg-gray-100' : 'bg-white'} hover:bg-gray-200 rounded-lg p-4 shadow-xl shadow-black/5 ring-1 ring-slate-700/10`}
+              onClick={() => videoJumpTo(chunk.timestamp[0])}
+            >
+              {cEditTimeIdx === i ? (
+                <div className='mr-5'>
+                  <input className='w-full bg-gray-100 rounded-lg p-2 mx-1' value={cEditTime[0]} onChange={(e) => setCET([Number(e.target.value), cEditTime[1]])} />
+                  <input className='w-full bg-gray-100 rounded-lg p-2 mx-1' value={cEditTime[1] ?? 0} onChange={(e) => setCET([cEditTime[0], Number(e.target.value)])} />
+                  <button className="mx-1 bg-gray-100 text-gray-500 hover:bg-gray-200 focus:ring-2 focus:ring-gray-300 font-medium rounded-lg text-sm px-4 py-2 text-center inline-flex items-center" onClick={setCETIAndCET}>Save</button>
+                </div>
+              ) : (
+                <div className='mr-5'
+                  onDoubleClick={() => {
+                    setCETI(i);
+                    setCET([...chunk.timestamp])
+                  }}
+                >
+                  {formatAudioTimestamp(chunk.timestamp[0])} -
+                  {formatAudioTimestamp(chunk.timestamp[1])}
+                </div>
+              )}
+              {currentEditingIndex === i ? (
+                <div className="flex flex-row flex-wrap w-full">
+                  <textarea rows={4} className='w-full bg-gray-100 rounded-lg p-2 mx-1' value={editingContent} onChange={(e) => setEditingContent(e.target.value)} />
+                  <button className="m-1 bg-gray-100 text-gray-500 hover:bg-gray-200 focus:ring-2 focus:ring-gray-300 font-medium rounded-lg text-sm px-4 py-2 text-center inline-flex items-center" onClick={saveEditingContent}>Save</button>
+                  <button className="m-1 bg-gray-100 text-gray-500 hover:bg-gray-200 focus:ring-2 focus:ring-gray-300 font-medium rounded-lg text-sm px-4 py-2 text-center inline-flex items-center" onClick={() => setCurrentEditingIndex(null)}>取消</button>
+                </div>
+              ) : (
+                <span
+                  onDoubleClick={() => {
+                    setCurrentEditingIndex(i);
+                    setEditingContent(chunk.text)
+                  }}
+                  className="text-gray-500">{chunk.text}</span>
+              )}
+              <div className="absolute bg-amber-500 text-white rounded-full px-2 py-1 top-1 right-1 invisible group-hover:visible hover:cursor-pointer hover:text-white hover:bg-gray-500" onClick={() => removeChunk(i)}>X</div>
+            </div>
+            {i < transcribedData.chunks.length && (
+              <div className='w-full h-1 bg-gray-300 my-2 text-center text-gray-500/0 hover:h-[2rem] hover:text-gray-500 ' >
+                {i < transcribedData.chunks.length - 1 && <span className="mx-4 hover:cursor-pointer hover:text-white hover:bg-gray-500" onClick={() => mergeChunk(i, i + 1)}>合</span>}
+                <span className="mx-4 hover:cursor-pointer hover:text-white hover:bg-gray-500" onClick={() => addChunk(i)}>+</span>
+                <span className="mx-4 hover:cursor-pointer hover:text-white hover:bg-gray-500"
+                  onClick={() => {
+                    setCurrentEditingIndex(i);
+                    setEditingContent(chunk.text)
+                  }}
+                >編輯</span>
               </div>
             )}
-            {currentEditingIndex === i ? (
-              <>
-                <input className='w-full bg-gray-100 rounded-lg p-2 mx-1' value={editingContent} onChange={(e) => setEditingContent(e.target.value)} />
-                <button className="mx-1 bg-gray-100 text-gray-500 hover:bg-gray-200 focus:ring-2 focus:ring-gray-300 font-medium rounded-lg text-sm px-4 py-2 text-center inline-flex items-center" onClick={saveEditingContent}>Save</button>
-              </>
-            ) : (
-              <span
-                onDoubleClick={() => {
-                  setCurrentEditingIndex(i);
-                  setEditingContent(chunk.text)
-                }}
-                className="text-gray-500">{chunk.text}</span>
-            )}
-          </div>
+          </>
         ))
       }
       {
